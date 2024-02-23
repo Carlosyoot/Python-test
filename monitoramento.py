@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 from datetime import datetime
 import pandas as pd
+
 def criar_tabela():
     conn = sqlite3.connect("salas.db")
     cursor = conn.cursor()
@@ -16,7 +17,7 @@ def criar_tabela():
     conn.commit()
     conn.close()
 
-    # Função para registrar a reunião
+# Função para registrar a reunião
 def registrar_reuniao(sala, data, participantes):
     conn = sqlite3.connect("salas.db")
     cursor = conn.cursor()
@@ -24,6 +25,7 @@ def registrar_reuniao(sala, data, participantes):
                    (sala, data, participantes))
     conn.commit()
     conn.close()
+
 # Função para recuperar as reuniões de uma sala específica
 def obter_reunioes(sala):
     conn = sqlite3.connect("salas.db")
@@ -33,12 +35,16 @@ def obter_reunioes(sala):
     conn.close()
     return reunioes
 
+# Criar a tabela se não existir
 criar_tabela()
+
 # Criar uma aba lateral
 st.sidebar.title("Calendário de Reuniões")
+
 # Adicionar um calendário interativo na aba lateral
 data_selecionada = st.sidebar.date_input("Selecione uma data:")
 data_selecionada = datetime.combine(data_selecionada, datetime.min.time())  # Remover a parte da hora
+
 # Obter todas as datas que têm reuniões marcadas
 reunioes = pd.read_sql("SELECT data FROM reunioes", sqlite3.connect("salas.db"))
 reunioes["data"] = pd.to_datetime(reunioes["data"])
@@ -48,13 +54,20 @@ datas_reunioes = reunioes["data"].dt.date.unique()
 calendario = st.sidebar.empty()
 calendario.write("Datas com reuniões:")
 calendario.write(datas_reunioes)
+
 # Exibir pop-up ao passar o cursor sobre uma data com reuniões
 if data_selecionada.date() in datas_reunioes:
     reunioes_neste_dia = reunioes[reunioes["data"].dt.date == data_selecionada.date()]
     for index, reuniao in reunioes_neste_dia.iterrows():
-        st.sidebar.write(f"Reunião marcada por {reuniao['sala']} em {reuniao['data'].strftime('%Y-%m-%d')}")
+        st.sidebar.write(f"Reunião marcada por {reuniao.sala} em {reuniao.data.strftime('%Y-%m-%d')}")
 
-st.title("Monitoramento de Salas de Reunião")    
+# Parte principal do aplicativo
+st.title("Monitoramento de Salas de Reunião")
+
+sala = st.selectbox("Selecione a sala:", ["Sala A", "Sala B", "Sala C"])
+data = st.date_input("Data da reunião:")
+participantes = st.text_area("Participantes (separados por vírgula):")
+
 # Definir um identificador exclusivo para o botão baseado na sala selecionada
 botao_id = f"registrar_reuniao_{sala}"
 
@@ -62,6 +75,7 @@ botao_id = f"registrar_reuniao_{sala}"
 if st.button("Registrar Reunião", key=botao_id):
     registrar_reuniao(sala, data, participantes)
     st.success("Reunião registrada com sucesso!")
+
 # Obter e exibir as reuniões registradas para a sala selecionada
 reunioes = obter_reunioes(sala)
 if reunioes:
