@@ -1,8 +1,8 @@
 import streamlit as st
 import sqlite3
 from datetime import datetime
+import pandas as pd
 
-# Função para criar a tabela se não existir
 def criar_tabela():
     conn = sqlite3.connect("salas.db")
     cursor = conn.cursor()
@@ -37,6 +37,29 @@ def obter_reunioes(sala):
 
 # Criar a tabela se não existir
 criar_tabela()
+
+# Criar uma aba lateral
+st.sidebar.title("Calendário de Reuniões")
+
+# Adicionar um calendário interativo na aba lateral
+data_selecionada = st.sidebar.date_input("Selecione uma data:")
+data_selecionada = datetime.combine(data_selecionada, datetime.min.time())  # Remover a parte da hora
+
+# Obter todas as datas que têm reuniões marcadas
+reunioes = pd.read_sql("SELECT data FROM reunioes", sqlite3.connect("salas.db"))
+reunioes["data"] = pd.to_datetime(reunioes["data"])
+
+# Marcar no calendário as datas com reuniões
+datas_reunioes = reunioes["data"].dt.date.unique()
+calendario = st.sidebar.empty()
+calendario.write("Datas com reuniões:")
+calendario.write(datas_reunioes)
+
+# Exibir pop-up ao passar o cursor sobre uma data com reuniões
+if data_selecionada.date() in datas_reunioes:
+    reunioes_neste_dia = reunioes[reunioes["data"].dt.date == data_selecionada.date()]
+    for index, reuniao in reunioes_neste_dia.iterrows():
+        st.sidebar.write(f"Reunião marcada por {reuniao.sala} em {reuniao.data.strftime('%Y-%m-%d')}")
 
 # Parte principal do aplicativo
 st.title("Monitoramento de Salas de Reunião")
