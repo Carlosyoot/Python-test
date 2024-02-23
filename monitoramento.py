@@ -1,56 +1,72 @@
 import streamlit as st
-import pandas as pd
 import sqlite3
-import calendar
+from datetime import datetime
+import pandas as pd
+def criar_tabela():
+    conn = sqlite3.connect("salas.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS reunioes (
+            id INTEGER PRIMARY KEY,
+            sala TEXT,
+            data DATE,
+            participantes TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-# Conectar-se ao banco de dados
-conn = sqlite3.connect("salas.db")
-cursor = conn.cursor()
+    # Função para registrar a reunião
+def registrar_reuniao(sala, data, participantes):
+    conn = sqlite3.connect("salas.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO reunioes (sala, data, participantes) VALUES (?, ?, ?)",
+                   (sala, data, participantes))
+    conn.commit()
+    conn.close()
+# Função para recuperar as reuniões de uma sala específica
+def obter_reunioes(sala):
+    conn = sqlite3.connect("salas.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT sala, data, participantes FROM reunioes WHERE sala=?", (sala,))
+    reunioes = cursor.fetchall()
+    conn.close()
+    return reunioes
 
-# Crie a tabela para armazenar as reuniões
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS reunioes (
-        id INTEGER PRIMARY KEY,
-        sala TEXT,
-        data DATE,
-        participantes TEXT
-    )
-""")
+criar_tabela()
+# Criar uma aba lateral
+st.sidebar.title("Calendário de Reuniões")
+# Adicionar um calendário interativo na aba lateral
+data_selecionada = st.sidebar.date_input("Selecione uma data:")
+data_selecionada = datetime.combine(data_selecionada, datetime.min.time())  # Remover a parte da hora
+# Obter todas as datas que têm reuniões marcadas
+reunioes = pd.read_sql("SELECT data FROM reunioes", sqlite3.connect("salas.db"))
+reunioes["data"] = pd.to_datetime(reunioes["data"])
 
-conn.commit()
+# Marcar no calendário as datas com reuniões
+datas_reunioes = reunioes["data"].dt.date.unique()
+calendario = st.sidebar.empty()
+calendario.write("Datas com reuniões:")
+calendario.write(datas_reunioes)
+# Exibir pop-up ao passar o cursor sobre uma data com reuniões
+if data_selecionada.date() in datas_reunioes:
+    reunioes_neste_dia = reunioes[reunioes["data"].dt.date == data_selecionada.date()]
+    for index, reuniao in reunioes_neste_dia.iterrows():
+        st.sidebar.write(f"Reunião marcada por {reuniao['sala']} em {reuniao['data'].strftime('%Y-%m-%d')}")
 
-# Sidebar com calendário
-st.sidebar.title("Calendário")
-selected_date = st.sidebar.date_input("Selecione uma data:")
+st.title("Monitoramento de Salas de Reunião")    
+# Definir um identificador exclusivo para o botão baseado na sala selecionada
+botao_id = f"registrar_reuniao_{sala}"
 
-# Exiba as reuniões marcadas no calendário
-cursor.execute("SELECT data, participantes FROM reunioes")
-reunioes = cursor.fetchall()
-
-df = pd.DataFrame(reunioes, columns=["Data", "Participantes"])
-df["Data"] = pd.to_datetime(df["Data"])
-df["Dia"] = df["Data"].dt.day
-df["Mês"] = df["Data"].dt.month
-df["Ano"] = df["Data"].dt.year
-
-calendario = calendar.month(df["Ano"].max(), df["Mês"].max())
-dias_marcados = df[df["Mês"] == selected_date.month]["Dia"].tolist()
-
-for semana in calendario:
-    for dia in semana:
-        if dia == 0:
-            st.sidebar.write(" ", end="  ")
-        elif dia in dias_marcados:
-            st.sidebar.write(f"{dia}", end="  ")
-        else:
-            st.sidebar.write(dia, end="  ")
-
-# Exiba informações sobre a reunião selecionada
-if selected_date.day in dias_marcados:
-    st.sidebar.write(f"### Reunião em {selected_date.strftime('%d/%m/%Y')}")
-    reuniao_selecionada = df[df["Dia"] == selected_date.day]
-    for _, row in reuniao_selecionada.iterrows():
-        st.sidebar.write(f"- Participantes: {row['Participantes']}")
-
-# Fechar a conexão com o banco de dados
-conn.close()
+# Usar o botão com o identificador exclusivo
+if st.button("Registrar Reunião", key=botao_id):
+    registrar_reuniao(sala, data, participantes)
+    st.success("Reunião registrada com sucesso!")
+# Obter e exibir as reuniões registradas para a sala selecionada
+reunioes = obter_reunioes(sala)
+if reunioes:
+    st.write(f"Reuniões na {sala}:")
+    for reuniao in reunioes:
+        st.write(f"- Data: {reuniao[1]}, Participantes: {reuniao[2]}")
+else:
+    st.write(f"Nenhuma reunião encontrada na {sala}.")
