@@ -59,8 +59,7 @@ calendario.write(datas_reunioes)
 if data_selecionada.date() in datas_reunioes:
     reunioes_neste_dia = reunioes[reunioes["data"].dt.date == data_selecionada.date()]
     for index, reuniao in reunioes_neste_dia.iterrows():
-        st.sidebar.write(f"Reunião marcada por {reuniao['sala']} em {reuniao['data'].strftime('%Y-%m-%d')}")
-
+        st.sidebar.write(f"Reunião marcada por {reuniao.sala} em {reuniao.data.strftime('%Y-%m-%d')}")
 # Parte principal do aplicativo
 st.title("Monitoramento de Salas de Reunião")
 
