@@ -64,7 +64,8 @@ if data_selecionada.date() in datas_reunioes:
 st.title("Monitoramento de Salas de Reunião")
 
 # Definir um identificador exclusivo para o botão baseado na sala selecionada
-botao_id = f"registrar_reuniao_{sala}"
+botao_id = "registrar_reuniao_{}".format(sala)
+
 
 # Usar o botão com o identificador exclusivo
 if st.button("Registrar Reunião", key=botao_id):
